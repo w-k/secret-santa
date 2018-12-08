@@ -2,9 +2,11 @@
 
 ## Prerequisites
 
-Requires openssl to be installed.
+Requires openssl to be available.
 
 ## Installation
+
+[Install Go](https://golang.org/doc/install) if you haven't already, and get this package:
 
 ```bash
 go get github.com/w-k/secret-santa
@@ -27,9 +29,9 @@ pubkeys
 └── Mary
 ```
 
-Where `Ashley` is the `id_rsa.pub` file received from Ashley and so on.
+Where `Ashley` is the `id_rsa.pub` file received from Ashley, etc.
 
-To demonstrate the random assignment works:
+To demonstrate that the random assignment works:
 
 ```bash
 secret-santa -in=./pubkeys -demo
