@@ -14,14 +14,9 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-
-	"github.com/gobuffalo/packr/v2"
 )
 
-var box *packr.Box
-
 func main() {
-	box = packr.New("assets", "./assets")
 	demo := flag.Bool("demo", false, "")
 	in := flag.String("in", "./in", "")
 	out := flag.String("out", "./out/results.zip", "")
@@ -62,9 +57,9 @@ func findPairs(participants []string) map[string]string {
 }
 
 func randomize(participants []string) []string {
-	count := len(participants)
 	s := rand.NewSource(time.Now().UTC().UnixNano())
 	r := rand.New(s)
+	count := len(participants)
 	permutation := r.Perm(count)
 	randomized := make([]string, count)
 	for i, p := range permutation {
@@ -100,6 +95,7 @@ func encrypt(plain []byte, keyPath string) []byte {
 	if err != nil {
 		log.Fatal(err)
 	}
+	defer os.Remove(tempFilename)
 	openssl := exec.Command("openssl", "rsautl", "-encrypt", "-pubin", "-inkey", tempFilename, "-ssl")
 	openssl.Stdin = bytes.NewBuffer(plain)
 	openssl.Stdout = &stdout
@@ -107,16 +103,22 @@ func encrypt(plain []byte, keyPath string) []byte {
 	if err != nil {
 		log.Fatal(err)
 	}
-	os.Remove(tempFilename)
 	return stdout.Bytes()
 }
 
-func copyFromAssets(w *zip.Writer, name string) {
+var readme = "# How to Read the Result\n\n" +
+	"In the directory containing this README:\n\n" +
+	"```bash\n" +
+	"chmod +x decrypt\n" +
+	"cat <YOUR NAME> | ./decrypt\n" +
+	"```\n\n" +
+	"By default the private key located in ~/.ssh/id_rsa is used.\n"
+
+var decryptScript = "#!/bin/bash\n\n" +
+	"cat | openssl rsautl -decrypt -inkey ~/.ssh/id_rsa\n"
+
+func writeToArchive(w *zip.Writer, name string, content []byte) {
 	f, err := w.Create(name)
-	if err != nil {
-		log.Fatal(err)
-	}
-	content, err := box.Find(name)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -129,12 +131,12 @@ func copyFromAssets(w *zip.Writer, name string) {
 func writeResults(sourceDir string, targetPath string, pairs map[string]string) {
 	buf := new(bytes.Buffer)
 	w := zip.NewWriter(buf)
-	copyFromAssets(w, "README.md")
-	copyFromAssets(w, "decrypt")
+	writeToArchive(w, "README.md", []byte(readme))
+	writeToArchive(w, "decrypt", []byte(decryptScript))
 	for k, v := range pairs {
 		sourcePath := fmt.Sprintf("%s/%s", sourceDir, k)
 		encrypted := encrypt([]byte(v), sourcePath)
-		f, err := w.Create(k + ".txt")
+		f, err := w.Create(k)
 		if err != nil {
 			log.Fatal(err)
 		}
